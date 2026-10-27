@@ -26,10 +26,13 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
 
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
+  final ScrollController _scrollController = ScrollController();
+  bool _isScrolled = false;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _booksSubscription = FirestoreService.getBooksStream().listen((books) {
       if (mounted) {
         setState(() {
@@ -46,8 +49,31 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
     });
   }
 
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final isScrolled = _scrollController.offset > 100;
+    if (isScrolled != _isScrolled) {
+      setState(() {
+        _isScrolled = isScrolled;
+      });
+    }
+  }
+
+  void _scrollToTop() {
+    if (_scrollController.hasClients && _scrollController.offset > 0) {
+      HapticFeedback.lightImpact();
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _booksSubscription?.cancel();
     _searchController.dispose();
     _searchFocusNode.dispose();
@@ -96,31 +122,34 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.secondary,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // ─── Header ──────────────────────────────────────────
-            _buildHeader(),
+      body: PrimaryScrollController(
+        controller: _scrollController,
+        child: SafeArea(
+          child: Column(
+            children: [
+              // ─── Header ──────────────────────────────────────────
+              _buildHeader(),
 
-            // ─── Search + Filter Row ─────────────────────────────
-            _buildSearchAndFilterRow(),
+              // ─── Search + Filter Row ─────────────────────────────
+              _buildSearchAndFilterRow(),
 
-            // ─── Book Count ──────────────────────────────────────
-            _buildBookCount(filteredBooks.length),
+              // ─── Book Count ──────────────────────────────────────
+              _buildBookCount(filteredBooks.length),
 
-            // ─── Book List/Grid ──────────────────────────────────
-            Expanded(
-              child: _isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        color: AppColors.primary,
-                      ),
-                    )
-                  : filteredBooks.isEmpty
-                      ? _buildEmptyState()
-                      : _buildBookDisplay(filteredBooks),
-            ),
-          ],
+              // ─── Book List/Grid ──────────────────────────────────
+              Expanded(
+                child: _isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.primary,
+                        ),
+                      )
+                    : filteredBooks.isEmpty
+                        ? _buildEmptyState()
+                        : _buildBookDisplay(filteredBooks),
+              ),
+            ],
+          ),
         ),
       ),
 
@@ -133,39 +162,73 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
   // HEADER
   // ═══════════════════════════════════════════════════════════════
   Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 4),
-      child: Row(
-        children: [
-          // Title
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'My Library',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                    letterSpacing: -0.5,
-                  ),
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: _scrollToTop,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 4),
+        child: Row(
+          children: [
+            // Title
+            Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _scrollToTop,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'My Library',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        if (_isScrolled) ...[
+                          const SizedBox(width: 8),
+                          AnimatedOpacity(
+                            opacity: _isScrolled ? 1.0 : 0.0,
+                            duration: const Duration(milliseconds: 200),
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.12),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.arrow_upward_rounded,
+                                size: 16,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _isScrolled
+                          ? 'Tap to scroll to top'
+                          : '${_books.length} books in collection',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: _isScrolled ? AppColors.primary : AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  '${_books.length} books in collection',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
-          // View Switcher
-          _buildViewSwitcher(),
-        ],
+            // View Switcher
+            _buildViewSwitcher(),
+          ],
+        ),
       ),
     );
   }
@@ -584,18 +647,21 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
     final hasActiveFilters =
         _filterRating != null || _sortBy != 'dateFinished';
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 14, 24, 6),
-      child: Row(
-        children: [
-          Text(
-            '$count ${count == 1 ? 'book' : 'books'}',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: _scrollToTop,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 14, 24, 6),
+        child: Row(
+          children: [
+            Text(
+              '$count ${count == 1 ? 'book' : 'books'}',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
             ),
-          ),
           if (hasActiveFilters) ...[
             const SizedBox(width: 8),
             GestureDetector(
@@ -630,6 +696,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
             ),
           ],
         ],
+        ),
       ),
     );
   }
@@ -648,6 +715,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
   // ─── GRID VIEW ─────────────────────────────────────────────────
   Widget _buildGridView(List<Book> books) {
     return GridView.builder(
+      controller: _scrollController,
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
@@ -690,6 +758,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
   // ─── LIST VIEW ─────────────────────────────────────────────────
   Widget _buildListView(List<Book> books) {
     return ListView.builder(
+      controller: _scrollController,
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
       itemCount: books.length,
       itemBuilder: (context, index) {
@@ -1258,26 +1327,74 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
                 ),
                 onTap: () async {
                   Navigator.pop(ctx);
+                  HapticFeedback.lightImpact();
                   final confirm = await showDialog<bool>(
                     context: context,
                     builder: (dCtx) => AlertDialog(
                       backgroundColor: AppColors.cardBackground,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                      title: const Text('Delete Book', style: TextStyle(fontWeight: FontWeight.w700)),
-                      content: Text('Are you sure you want to delete "${book.title}" from your bookshelf?'),
+                      title: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFCC5B5B).withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.delete_outline_rounded,
+                              color: Color(0xFFCC5B5B),
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Text(
+                              'Delete Book',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 18,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      content: Text(
+                        'Are you sure you want to delete "${book.title}" from your bookshelf?',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                          height: 1.4,
+                        ),
+                      ),
+                      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(dCtx, false),
-                          child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+                          child: const Text(
+                            'Cancel',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFCC5B5B),
                             foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                           ),
                           onPressed: () => Navigator.pop(dCtx, true),
-                          child: const Text('Delete'),
+                          child: const Text(
+                            'Delete',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
                         ),
                       ],
                     ),

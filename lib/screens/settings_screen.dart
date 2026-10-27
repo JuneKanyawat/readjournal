@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_data.dart';
 import '../services/auth_service.dart';
@@ -85,6 +86,86 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.dispose();
   }
 
+  // ─── Confirmation Dialog Helper ──────────────────────────────
+  Future<bool> _showConfirmDeleteDialog({
+    required String title,
+    required String message,
+  }) async {
+    HapticFeedback.lightImpact();
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dCtx) => AlertDialog(
+        backgroundColor: AppColors.cardBackground,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFCC5B5B).withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.delete_outline_rounded,
+                color: Color(0xFFCC5B5B),
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 18,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          style: const TextStyle(
+            fontSize: 14,
+            color: AppColors.textSecondary,
+            height: 1.4,
+          ),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dCtx, false),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFCC5B5B),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
+            onPressed: () => Navigator.pop(dCtx, true),
+            child: const Text(
+              'Delete',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
   // ─── Rating Topic Actions ─────────────────────────────────────
   void _addRatingTopic() {
     final text = _newTopicController.text.trim();
@@ -97,8 +178,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  void _deleteRatingTopic(int index) {
+  Future<void> _deleteRatingTopic(int index) async {
     final topic = _ratingTopics[index];
+    final confirm = await _showConfirmDeleteDialog(
+      title: 'Delete Criteria',
+      message: 'Are you sure you want to delete "$topic"?',
+    );
+    if (!confirm) return;
+
     setState(() {
       _ratingTopics.removeAt(index);
       if (_editingTopicIndex == index) _editingTopicIndex = null;
@@ -135,7 +222,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  void _removeGenreTag(String tag) {
+  Future<void> _removeGenreTag(String tag) async {
+    final confirm = await _showConfirmDeleteDialog(
+      title: 'Delete Genre',
+      message: 'Are you sure you want to delete "$tag"?',
+    );
+    if (!confirm) return;
+
     setState(() {
       _genreTags.remove(tag);
     });
@@ -153,7 +246,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  void _removePublisher(String publisher) {
+  Future<void> _removePublisher(String publisher) async {
+    final confirm = await _showConfirmDeleteDialog(
+      title: 'Delete Publisher',
+      message: 'Are you sure you want to delete "$publisher"?',
+    );
+    if (!confirm) return;
+
     setState(() {
       _publishers.remove(publisher);
     });

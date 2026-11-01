@@ -19,4 +19,17 @@ class AppData {
     'Plot Twist',
     'Smut',
   ];
+
+  /// Shared list of genres that users can manage in Settings and select in Add Book
+  static final List<String> genres = [
+    'Romance',
+    'Fantasy',
+    'Drama',
+    'Smut / 18+',
+    'Thriller',
+    'Sci-Fi',
+    'Dark Fantasy',
+    'Slow Burn',
+    'Mystery',
+  ];
 }

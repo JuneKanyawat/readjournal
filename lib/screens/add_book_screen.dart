@@ -45,6 +45,11 @@ class _AddBookScreenState extends State<AddBookScreen> {
   BookStatus _selectedStatus = BookStatus.finished;
   DateTime? _dateFinished = DateTime.now();
 
+  // ─── Genres ────────────────────────────────────────────────────
+  static const bool _enableGenres = false;
+  final List<String> _selectedGenres = [];
+  final TextEditingController _customGenreController = TextEditingController();
+
   // ─── Ratings ───────────────────────────────────────────────────
   late final Map<String, double> _customRatings;
 
@@ -94,6 +99,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
     _settingsSub?.cancel();
     _titleController.dispose();
     _authorController.dispose();
+    _customGenreController.dispose();
     super.dispose();
   }
 
@@ -230,7 +236,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
       coverColorValue: _selectedColorValue,
       overallRating: _selectedStatus == BookStatus.finished ? _overallRating : 0.0,
       customRatings: _selectedStatus == BookStatus.finished ? Map.from(_customRatings) : {},
-      genres: const [],
+      genres: List.from(_selectedGenres),
       status: _selectedStatus,
       dateFinished: _selectedStatus == BookStatus.finished ? _dateFinished : null,
       coverInitial: initial,
@@ -295,6 +301,12 @@ class _AddBookScreenState extends State<AddBookScreen> {
                   ],
                 ),
               ),
+
+              // 2.5 Book Genres (ปิดการใช้งานชั่วคราว)
+              if (_enableGenres) ...[
+                const SizedBox(height: 20),
+                _buildGenresSection(),
+              ],
 
               const SizedBox(height: 20),
 
@@ -498,6 +510,130 @@ class _AddBookScreenState extends State<AddBookScreen> {
         ),
       ),
     );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // GENRES SECTION
+  // ═══════════════════════════════════════════════════════════════
+  Widget _buildGenresSection() {
+    final allGenres = <String>{...AppData.genres, ..._selectedGenres}.toList();
+
+    return _buildSectionCard(
+      title: 'Book Genres (หมวดหมู่)',
+      icon: Icons.category_rounded,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: allGenres.map((genre) {
+              final isSelected = _selectedGenres.contains(genre);
+              return FilterChip(
+                label: Text(genre),
+                selected: isSelected,
+                onSelected: (selected) {
+                  HapticFeedback.selectionClick();
+                  setState(() {
+                    if (selected) {
+                      _selectedGenres.add(genre);
+                    } else {
+                      _selectedGenres.remove(genre);
+                    }
+                  });
+                },
+                backgroundColor: AppColors.secondary,
+                selectedColor: AppColors.primary.withValues(alpha: 0.15),
+                checkmarkColor: AppColors.primary,
+                labelStyle: TextStyle(
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  side: BorderSide(
+                    color: isSelected ? AppColors.primary : AppColors.divider,
+                    width: isSelected ? 1.5 : 1,
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 14),
+          // Quick add genre input
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  height: 42,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.divider),
+                  ),
+                  child: TextField(
+                    controller: _customGenreController,
+                    style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                    decoration: const InputDecoration(
+                      hintText: 'Add new genre (เช่น Horror, Comedy)...',
+                      hintStyle: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onSubmitted: (_) => _addCustomGenre(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Material(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(10),
+                child: InkWell(
+                  onTap: _addCustomGenre,
+                  borderRadius: BorderRadius.circular(10),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add_rounded, size: 16, color: Colors.white),
+                        SizedBox(width: 4),
+                        Text(
+                          'Add',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _addCustomGenre() {
+    final text = _customGenreController.text.trim();
+    if (text.isNotEmpty) {
+      HapticFeedback.lightImpact();
+      setState(() {
+        if (!_selectedGenres.contains(text)) {
+          _selectedGenres.add(text);
+        }
+        _customGenreController.clear();
+      });
+      FirestoreService.addGenre(text);
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════

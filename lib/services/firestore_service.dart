@@ -113,6 +113,7 @@ class FirestoreService {
         await ref.set({
           'publishers': AppData.publishers,
           'ratingTopics': AppData.ratingTopics,
+          'genres': AppData.genres,
           'updatedAt': FieldValue.serverTimestamp(),
         });
       } else {
@@ -140,6 +141,14 @@ class FirestoreService {
       final list = (data['ratingTopics'] as List).map((e) => e.toString()).toList();
       if (list.isNotEmpty) {
         AppData.ratingTopics
+          ..clear()
+          ..addAll(list);
+      }
+    }
+    if (data['genres'] is List) {
+      final list = (data['genres'] as List).map((e) => e.toString()).toList();
+      if (list.isNotEmpty) {
+        AppData.genres
           ..clear()
           ..addAll(list);
       }
@@ -234,6 +243,52 @@ class FirestoreService {
 
     await ref.set({
       'ratingTopics': topics,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  /// Add a genre to Firestore and memory
+  static Future<void> addGenre(String genre) async {
+    final trimmed = genre.trim();
+    if (trimmed.isEmpty) return;
+
+    if (!AppData.genres.contains(trimmed)) {
+      AppData.genres.add(trimmed);
+    }
+
+    final ref = _settingsRef;
+    if (ref == null) return;
+
+    await ref.set({
+      'genres': FieldValue.arrayUnion([trimmed]),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  /// Remove a genre from Firestore and memory
+  static Future<void> removeGenre(String genre) async {
+    AppData.genres.remove(genre);
+
+    final ref = _settingsRef;
+    if (ref == null) return;
+
+    await ref.set({
+      'genres': FieldValue.arrayRemove([genre]),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  /// Update entire genres list in Firestore and memory
+  static Future<void> updateGenres(List<String> genres) async {
+    AppData.genres
+      ..clear()
+      ..addAll(genres);
+
+    final ref = _settingsRef;
+    if (ref == null) return;
+
+    await ref.set({
+      'genres': genres,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }

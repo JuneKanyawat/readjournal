@@ -25,15 +25,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final TextEditingController _editTopicController = TextEditingController();
 
   // ─── Genre Tags ────────────────────────────────────────────────
-  final List<String> _genreTags = [
-    'Fantasy',
-    'Romance',
-    'Thriller',
-    'Sci-Fi',
-    'Dark Fantasy',
-    'Slow Burn',
-    'Mystery',
-  ];
+  static const bool _enableGenres = false;
+  List<String> _genreTags = [];
   final TextEditingController _newGenreController = TextEditingController();
 
   // ─── Publishers ────────────────────────────────────────────────
@@ -57,6 +50,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.initState();
     _ratingTopics = List.from(AppData.ratingTopics);
     _publishers = List.from(AppData.publishers);
+    _genreTags = List.from(AppData.genres);
 
     // Subscribe to Firestore preferences
     _settingsSubscription = FirestoreService.getSettingsStream()?.listen((doc) {
@@ -69,6 +63,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           }
           if (data['publishers'] is List) {
             _publishers = (data['publishers'] as List).map((e) => e.toString()).toList();
+          }
+          if (data['genres'] is List) {
+            _genreTags = (data['genres'] as List).map((e) => e.toString()).toList();
           }
         });
         FirestoreService.syncToAppData(data);
@@ -219,6 +216,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _genreTags.add(text);
         _newGenreController.clear();
       });
+      FirestoreService.addGenre(text);
     }
   }
 
@@ -232,6 +230,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {
       _genreTags.remove(tag);
     });
+    FirestoreService.removeGenre(tag);
   }
 
   // ─── Publisher Actions ────────────────────────────────────────
@@ -296,13 +295,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: _buildRatingTopicsSection(),
                     ),
                     const SizedBox(height: 20),
-                    _buildSectionCard(
-                      title: 'Genre Tags',
-                      subtitle: 'Manage your book genre categories',
-                      icon: Icons.local_offer_rounded,
-                      child: _buildGenreTagsSection(),
-                    ),
-                    const SizedBox(height: 20),
+                    // Genre Tags (ปิดการใช้งานชั่วคราว)
+                    if (_enableGenres) ...[
+                      _buildSectionCard(
+                        title: 'Genre Tags',
+                        subtitle: 'Manage your book genre categories',
+                        icon: Icons.local_offer_rounded,
+                        child: _buildGenreTagsSection(),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
                     _buildSectionCard(
                       title: 'Publishers',
                       subtitle: 'Manage your book publishers',

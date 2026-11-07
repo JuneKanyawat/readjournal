@@ -69,6 +69,26 @@ class FirestoreService {
     await ref.doc(book.id).update(data);
   }
 
+  /// Toggle book blur state in Firestore
+  static Future<void> toggleBlur(String bookId, bool isBlurred) async {
+    final ref = _booksRef;
+    if (ref == null) return;
+    await ref.doc(bookId).update({
+      'isBlurred': isBlurred,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Toggle book favorite state in Firestore
+  static Future<void> toggleFavorite(String bookId, bool isFavorite) async {
+    final ref = _booksRef;
+    if (ref == null) return;
+    await ref.doc(bookId).update({
+      'isFavorite': isFavorite,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   /// Delete a book from Firestore
   static Future<void> deleteBook(String bookId) async {
     final ref = _booksRef;

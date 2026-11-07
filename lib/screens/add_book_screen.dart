@@ -8,7 +8,8 @@ import '../models/book.dart';
 import '../services/firestore_service.dart';
 
 class AddBookScreen extends StatefulWidget {
-  const AddBookScreen({super.key});
+  final Book? bookToEdit;
+  const AddBookScreen({super.key, this.bookToEdit});
 
   @override
   State<AddBookScreen> createState() => _AddBookScreenState();
@@ -45,6 +46,10 @@ class _AddBookScreenState extends State<AddBookScreen> {
   BookStatus _selectedStatus = BookStatus.finished;
   DateTime? _dateFinished = DateTime.now();
 
+  // ─── Favorite & Blur Flags ─────────────────────────────────────
+  bool _isFavorite = false;
+  bool _isBlurred = false;
+
   // ─── Genres ────────────────────────────────────────────────────
   static const bool _enableGenres = false;
   final List<String> _selectedGenres = [];
@@ -64,14 +69,35 @@ class _AddBookScreenState extends State<AddBookScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedColorValue = _coverColors[0];
-    if (AppData.publishers.isNotEmpty) {
-      _selectedPublisher = AppData.publishers.first;
+    final edit = widget.bookToEdit;
+    if (edit != null) {
+      _titleController.text = edit.title;
+      _authorController.text = edit.author;
+      _selectedPublisher = edit.publisher;
+      _selectedColorValue = edit.coverColorValue;
+      _selectedStatus = edit.status;
+      _dateFinished = edit.dateFinished ?? DateTime.now();
+      _coverImageBytes = edit.coverImageBytes;
+      _isFavorite = edit.isFavorite;
+      _isBlurred = edit.isBlurred;
+      _selectedGenres.addAll(edit.genres);
+      _customRatings = {
+        for (final topic in AppData.ratingTopics)
+          topic: edit.customRatings[topic] ?? 4.0,
+      };
+      // Keep any custom ratings that were on the book but not in default topics
+      edit.customRatings.forEach((k, v) {
+        _customRatings.putIfAbsent(k, () => v);
+      });
+    } else {
+      _selectedColorValue = _coverColors[0];
+      if (AppData.publishers.isNotEmpty) {
+        _selectedPublisher = AppData.publishers.first;
+      }
+      _customRatings = {
+        for (final topic in AppData.ratingTopics) topic: 4.0,
+      };
     }
-
-    _customRatings = {
-      for (final topic in AppData.ratingTopics) topic: 4.0,
-    };
 
     _titleController.addListener(() => setState(() {}));
 
@@ -228,22 +254,40 @@ class _AddBookScreenState extends State<AddBookScreen> {
 
     final initial = title.isNotEmpty ? title[0].toUpperCase() : 'B';
 
-    final newBook = Book(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      title: title,
-      author: author,
-      publisher: publisher,
-      coverColorValue: _selectedColorValue,
-      overallRating: _selectedStatus == BookStatus.finished ? _overallRating : 0.0,
-      customRatings: _selectedStatus == BookStatus.finished ? Map.from(_customRatings) : {},
-      genres: List.from(_selectedGenres),
-      status: _selectedStatus,
-      dateFinished: _selectedStatus == BookStatus.finished ? _dateFinished : null,
-      coverInitial: initial,
-      coverImageBytes: _coverImageBytes,
-    );
+    final savedBook = widget.bookToEdit != null
+        ? widget.bookToEdit!.copyWith(
+            title: title,
+            author: author,
+            publisher: publisher,
+            coverColorValue: _selectedColorValue,
+            overallRating: _selectedStatus == BookStatus.finished ? _overallRating : 0.0,
+            customRatings: _selectedStatus == BookStatus.finished ? Map.from(_customRatings) : {},
+            genres: List.from(_selectedGenres),
+            status: _selectedStatus,
+            dateFinished: _selectedStatus == BookStatus.finished ? _dateFinished : null,
+            coverInitial: initial,
+            coverImageBytes: _coverImageBytes,
+            isFavorite: _isFavorite,
+            isBlurred: _isBlurred,
+          )
+        : Book(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            title: title,
+            author: author,
+            publisher: publisher,
+            coverColorValue: _selectedColorValue,
+            overallRating: _selectedStatus == BookStatus.finished ? _overallRating : 0.0,
+            customRatings: _selectedStatus == BookStatus.finished ? Map.from(_customRatings) : {},
+            genres: List.from(_selectedGenres),
+            status: _selectedStatus,
+            dateFinished: _selectedStatus == BookStatus.finished ? _dateFinished : null,
+            coverInitial: initial,
+            coverImageBytes: _coverImageBytes,
+            isFavorite: _isFavorite,
+            isBlurred: false,
+          );
 
-    Navigator.pop(context, newBook);
+    Navigator.pop(context, savedBook);
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -307,6 +351,11 @@ class _AddBookScreenState extends State<AddBookScreen> {
                 const SizedBox(height: 20),
                 _buildGenresSection(),
               ],
+
+              const SizedBox(height: 20),
+
+              // 2.6 Favorite Toggle Section
+              _buildFavoriteSection(),
 
               const SizedBox(height: 20),
 
@@ -637,6 +686,99 @@ class _AddBookScreenState extends State<AddBookScreen> {
   }
 
   // ═══════════════════════════════════════════════════════════════
+  // FAVORITE SECTION
+  // ═══════════════════════════════════════════════════════════════
+  Widget _buildFavoriteSection() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: _isFavorite
+              ? const Color(0xFFD48B28).withValues(alpha: 0.6)
+              : AppColors.divider.withValues(alpha: 0.6),
+          width: _isFavorite ? 1.5 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: _isFavorite
+                ? const Color(0xFFD48B28).withValues(alpha: 0.12)
+                : AppColors.textPrimary.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () {
+            HapticFeedback.selectionClick();
+            setState(() => _isFavorite = !_isFavorite);
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: _isFavorite ? const Color(0xFFFCF3DE) : AppColors.secondary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    _isFavorite ? Icons.star_rounded : Icons.star_outline_rounded,
+                    color: _isFavorite ? const Color(0xFFD48B28) : AppColors.textSecondary,
+                    size: 26,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Favorite Book (หนังสือเล่มโปรด)',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: _isFavorite ? const Color(0xFFB57018) : AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _isFavorite
+                            ? 'เพิ่มในรายการโปรดแล้ว (แสดงดาวสีทองบนชั้นหนังสือ)'
+                            : 'แตะเพื่อเพิ่มเป็นหนังสือเล่มโปรด',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textSecondary.withValues(alpha: 0.8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: _isFavorite,
+                  activeThumbColor: const Color(0xFFD48B28),
+                  activeTrackColor: const Color(0xFFFCF3DE),
+                  onChanged: (val) {
+                    HapticFeedback.selectionClick();
+                    setState(() => _isFavorite = val);
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
   // APP BAR
   // ═══════════════════════════════════════════════════════════════
   PreferredSizeWidget _buildAppBar() {
@@ -667,9 +809,9 @@ class _AddBookScreenState extends State<AddBookScreen> {
         ),
         onPressed: () => Navigator.pop(context),
       ),
-      title: const Text(
-        'Add New Book',
-        style: TextStyle(
+      title: Text(
+        widget.bookToEdit != null ? 'Edit Book Details' : 'Add New Book',
+        style: const TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w700,
           color: AppColors.textPrimary,

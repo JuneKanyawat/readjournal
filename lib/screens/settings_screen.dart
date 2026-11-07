@@ -24,8 +24,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   int? _editingTopicIndex;
   final TextEditingController _editTopicController = TextEditingController();
 
-  // ─── Genre Tags ────────────────────────────────────────────────
+  // ─── Feature Flags ─────────────────────────────────────────────
   static const bool _enableGenres = false;
+  static const bool _enableAppearance = false;
+
+  // ─── Genre Tags ────────────────────────────────────────────────
   List<String> _genreTags = [];
   final TextEditingController _newGenreController = TextEditingController();
 
@@ -311,13 +314,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       icon: Icons.business_rounded,
                       child: _buildPublishersSection(),
                     ),
-                    const SizedBox(height: 20),
-                    _buildSectionCard(
-                      title: 'Appearance',
-                      subtitle: 'Customize how your app looks',
-                      icon: Icons.palette_rounded,
-                      child: _buildAppPreferencesSection(),
-                    ),
+                    // Appearance (ปิดการใช้งานชั่วคราว)
+                    if (_enableAppearance) ...[
+                      const SizedBox(height: 20),
+                      _buildSectionCard(
+                        title: 'Appearance',
+                        subtitle: 'Customize how your app looks',
+                        icon: Icons.palette_rounded,
+                        child: _buildAppPreferencesSection(),
+                      ),
+                    ],
                     const SizedBox(height: 32),
                   ],
                 ),

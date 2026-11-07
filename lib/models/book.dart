@@ -16,6 +16,8 @@ class Book {
   final DateTime? dateFinished;
   final String? coverInitial; // first letter for placeholder cover
   final Uint8List? coverImageBytes; // custom user uploaded cover image
+  final bool isFavorite; // favorite flag
+  final bool isBlurred; // cover blur flag
 
   const Book({
     required this.id,
@@ -30,6 +32,8 @@ class Book {
     this.dateFinished,
     this.coverInitial,
     this.coverImageBytes,
+    this.isFavorite = false,
+    this.isBlurred = false,
   });
 
   /// Convert Book object to Map for Firestore document storage
@@ -46,6 +50,8 @@ class Book {
       'dateFinished': dateFinished != null ? Timestamp.fromDate(dateFinished!) : null,
       'coverInitial': coverInitial,
       'coverImageBase64': coverImageBytes != null ? base64Encode(coverImageBytes!) : null,
+      'isFavorite': isFavorite,
+      'isBlurred': isBlurred,
     };
   }
 
@@ -107,6 +113,8 @@ class Book {
       dateFinished: date,
       coverInitial: map['coverInitial'] as String?,
       coverImageBytes: imageBytes,
+      isFavorite: map['isFavorite'] as bool? ?? false,
+      isBlurred: map['isBlurred'] as bool? ?? false,
     );
   }
 
@@ -123,6 +131,8 @@ class Book {
     DateTime? dateFinished,
     String? coverInitial,
     Uint8List? coverImageBytes,
+    bool? isFavorite,
+    bool? isBlurred,
   }) {
     return Book(
       id: id ?? this.id,
@@ -137,6 +147,8 @@ class Book {
       dateFinished: dateFinished ?? this.dateFinished,
       coverInitial: coverInitial ?? this.coverInitial,
       coverImageBytes: coverImageBytes ?? this.coverImageBytes,
+      isFavorite: isFavorite ?? this.isFavorite,
+      isBlurred: isBlurred ?? this.isBlurred,
     );
   }
 }

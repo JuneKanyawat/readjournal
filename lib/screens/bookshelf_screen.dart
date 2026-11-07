@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
@@ -745,11 +746,72 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
         );
       },
       child: GestureDetector(
-        onTap: () => _showBookOptions(book),
+        onTap: () => _showBookDetail(book),
         onLongPress: () => _showBookOptions(book),
-        child: _buildBookCover(
-          book,
-          borderRadius: BorderRadius.circular(16),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: _buildBookCover(
+                book,
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            // Favorite Star Badge (Top Left)
+            if (book.isFavorite)
+              Positioned(
+                top: 8,
+                left: 8,
+                child: Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.92),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.star_rounded,
+                    size: 16,
+                    color: Color(0xFFF5A623),
+                  ),
+                ),
+              ),
+            // Eye Toggle Icon for Blur (Bottom Right)
+            Positioned(
+              bottom: 8,
+              right: 8,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _toggleBlur(book),
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.6),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.25),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    book.isBlurred
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
+                    size: 17,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -782,7 +844,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
         );
       },
       child: GestureDetector(
-        onTap: () => _showBookOptions(book),
+        onTap: () => _showBookDetail(book),
         onLongPress: () => _showBookOptions(book),
         child: Container(
           margin: const EdgeInsets.only(bottom: 12),
@@ -806,9 +868,38 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
                 SizedBox(
                   width: 80,
                   height: 115,
-                  child: _buildBookCover(
-                    book,
-                    borderRadius: BorderRadius.circular(12),
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: _buildBookCover(
+                          book,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      if (book.isFavorite)
+                        Positioned(
+                          top: 4,
+                          left: 4,
+                          child: Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.92),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.15),
+                                  blurRadius: 4,
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.star_rounded,
+                              size: 13,
+                              color: Color(0xFFF5A623),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
 
@@ -970,121 +1061,127 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
   // ═══════════════════════════════════════════════════════════════
 
   // ─── Book Cover (placeholder with gradient + initial or custom image) ──
-  Widget _buildBookCover(Book book, {required BorderRadius borderRadius}) {
+  Widget _buildBookCover(
+    Book book, {
+    required BorderRadius borderRadius,
+    bool allowBlur = true,
+  }) {
+    Widget imageContent;
+
     if (book.coverImageBytes != null) {
-      return Container(
-        clipBehavior: Clip.antiAlias,
+      imageContent = Image.memory(
+        book.coverImageBytes!,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+      );
+    } else {
+      final baseColor = Color(book.coverColorValue);
+      imageContent = Container(
         decoration: BoxDecoration(
-          borderRadius: borderRadius,
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.textPrimary.withValues(alpha: 0.12),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
+          gradient: LinearGradient(
+            colors: [
+              baseColor,
+              baseColor.withValues(alpha: 0.7),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Stack(
+          children: [
+            // Decorative pattern
+            Positioned(
+              right: -10,
+              top: -10,
+              child: Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.06),
+                ),
+              ),
+            ),
+            Positioned(
+              left: -15,
+              bottom: -15,
+              child: Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.04),
+                ),
+              ),
+            ),
+            // Content
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Book icon
+                      Icon(
+                        Icons.auto_stories_rounded,
+                        size: 24,
+                        color: Colors.white.withValues(alpha: 0.4),
+                      ),
+                      const SizedBox(height: 6),
+                      // Initial Letter
+                      Text(
+                        book.coverInitial ?? (book.title.isNotEmpty ? book.title[0] : 'B'),
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white.withValues(alpha: 0.9),
+                          letterSpacing: -1,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      // Spine-like divider
+                      Container(
+                        width: 24,
+                        height: 2,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(1),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ],
-        ),
-        child: Image.memory(
-          book.coverImageBytes!,
-          fit: BoxFit.cover,
-          width: double.infinity,
-          height: double.infinity,
         ),
       );
     }
 
-    final baseColor = Color(book.coverColorValue);
+    if (allowBlur && book.isBlurred) {
+      imageContent = ImageFiltered(
+        imageFilter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: imageContent,
+      );
+    }
+
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         borderRadius: borderRadius,
-        gradient: LinearGradient(
-          colors: [
-            baseColor,
-            baseColor.withValues(alpha: 0.7),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
         boxShadow: [
           BoxShadow(
-            color: baseColor.withValues(alpha: 0.25),
+            color: AppColors.textPrimary.withValues(alpha: 0.12),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
         ],
       ),
-      child: Stack(
-        children: [
-          // Decorative pattern
-          Positioned(
-            right: -10,
-            top: -10,
-            child: Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.06),
-              ),
-            ),
-          ),
-          Positioned(
-            left: -15,
-            bottom: -15,
-            child: Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.04),
-              ),
-            ),
-          ),
-          // Content
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Book icon
-                    Icon(
-                      Icons.auto_stories_rounded,
-                      size: 24,
-                      color: Colors.white.withValues(alpha: 0.4),
-                    ),
-                    const SizedBox(height: 6),
-                    // Initial Letter
-                    Text(
-                      book.coverInitial ?? book.title[0],
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white.withValues(alpha: 0.9),
-                        letterSpacing: -1,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    // Spine-like divider
-                    Container(
-                      width: 24,
-                      height: 2,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(1),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+      child: imageContent,
     );
   }
 
@@ -1265,172 +1362,661 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
     }
   }
 
-  void _showBookOptions(Book book) {
+  // ═══════════════════════════════════════════════════════════════
+  // BLUR & FAVORITE TOGGLES
+  // ═══════════════════════════════════════════════════════════════
+  void _toggleBlur(Book book) {
+    HapticFeedback.lightImpact();
+    final newBlurred = !book.isBlurred;
+    setState(() {
+      final index = _books.indexWhere((b) => b.id == book.id);
+      if (index != -1) {
+        _books[index] = _books[index].copyWith(isBlurred: newBlurred);
+      }
+    });
+    FirestoreService.toggleBlur(book.id, newBlurred);
+  }
+
+  void _toggleFavorite(Book book) {
+    HapticFeedback.lightImpact();
+    final newFavorite = !book.isFavorite;
+    setState(() {
+      final index = _books.indexWhere((b) => b.id == book.id);
+      if (index != -1) {
+        _books[index] = _books[index].copyWith(isFavorite: newFavorite);
+      }
+    });
+    FirestoreService.toggleFavorite(book.id, newFavorite);
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // BOOK DETAIL MODAL (Matching UI Mockup)
+  // ═══════════════════════════════════════════════════════════════
+  void _showBookDetail(Book book) {
     HapticFeedback.mediumImpact();
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: AppColors.cardBackground,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.divider,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            // Find current book in case favorite or blur changed
+            final currentBook = _books.firstWhere(
+              (b) => b.id == book.id,
+              orElse: () => book,
+            );
+
+            // Determine status badge colors & text
+            Color statusBg;
+            Color statusTextColor;
+            String statusLabel;
+            switch (currentBook.status) {
+              case BookStatus.finished:
+                statusBg = const Color(0xFFD4F7E6);
+                statusTextColor = const Color(0xFF137A4B);
+                statusLabel = 'อ่านจบแล้ว';
+                break;
+              case BookStatus.reading:
+                statusBg = const Color(0xFFFFF3D6);
+                statusTextColor = const Color(0xFFB57000);
+                statusLabel = 'กำลังอ่าน';
+                break;
+              case BookStatus.wishlist:
+                statusBg = const Color(0xFFEFEFEF);
+                statusTextColor = const Color(0xFF666666);
+                statusLabel = 'อยากอ่าน';
+                break;
+            }
+
+            return Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.88,
               ),
-              const SizedBox(height: 20),
-              Text(
-                book.title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
+              decoration: const BoxDecoration(
+                color: AppColors.cardBackground,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              const SizedBox(height: 4),
-              Text(
-                'by ${book.author} · ${book.publisher}',
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 24),
-              ListTile(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFCC5B5B).withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
+              padding: const EdgeInsets.fromLTRB(22, 14, 22, 28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Handle
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.divider,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
                   ),
-                  child: const Icon(Icons.delete_outline_rounded, color: Color(0xFFCC5B5B), size: 20),
-                ),
-                title: const Text(
-                  'Delete from Library',
-                  style: TextStyle(
-                    color: Color(0xFFCC5B5B),
-                    fontWeight: FontWeight.w600,
-                    fontSize: 15,
-                  ),
-                ),
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  HapticFeedback.lightImpact();
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (dCtx) => AlertDialog(
-                      backgroundColor: AppColors.cardBackground,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                      title: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFCC5B5B).withValues(alpha: 0.1),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.delete_outline_rounded,
-                              color: Color(0xFFCC5B5B),
-                              size: 20,
-                            ),
+
+                  // Top Header Row with title and 'X' close button
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'รายละเอียดหนังสือ',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(ctx),
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: AppColors.secondary,
+                            shape: BoxShape.circle,
                           ),
-                          const SizedBox(width: 12),
-                          const Expanded(
-                            child: Text(
-                              'Delete Book',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 18,
-                                color: AppColors.textPrimary,
+                          child: const Icon(
+                            Icons.close_rounded,
+                            size: 18,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  Flexible(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Cover + Book Info Row
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Cover Thumbnail
+                              SizedBox(
+                                width: 110,
+                                height: 155,
+                                child: _buildBookCover(
+                                  currentBook,
+                                  borderRadius: BorderRadius.circular(16),
+                                  allowBlur: false, // show clearly in detail
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              // Info Column
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Title
+                                    Text(
+                                      currentBook.title,
+                                      maxLines: 3,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppColors.textPrimary,
+                                        height: 1.25,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+
+                                    // Publisher
+                                    Text(
+                                      'สำนักพิมพ์: ${currentBook.publisher.isNotEmpty ? currentBook.publisher : currentBook.author}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+
+                                    // Status Badge Pill
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: statusBg,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        statusLabel,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: statusTextColor,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+
+                                    // Date Finished
+                                    if (currentBook.dateFinished != null)
+                                      Text(
+                                        'อ่านจบเมื่อ: ${currentBook.dateFinished!.year}-${currentBook.dateFinished!.month.toString().padLeft(2, '0')}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          // Genre Tags
+                          if (currentBook.genres.isNotEmpty) ...[
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: currentBook.genres.map((genre) {
+                                return _buildDetailGenreChip(genre);
+                              }).toList(),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+
+                          // Ratings Card
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: AppColors.cardBackground,
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(
+                                color: AppColors.divider.withValues(alpha: 0.8),
+                                width: 1,
                               ),
                             ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Ratings Header
+                                Row(
+                                  children: const [
+                                    Icon(
+                                      Icons.star_rounded,
+                                      size: 20,
+                                      color: Color(0xFFF5A623),
+                                    ),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      'คะแนนคะแนนประเมิน (Ratings)',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+
+                                // Ratings Grid (2 columns)
+                                _buildDetailRatingsGrid(currentBook),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // Action Buttons
+                          Row(
+                            children: [
+                              // Favorite Toggle Button
+                              GestureDetector(
+                                onTap: () {
+                                  _toggleFavorite(currentBook);
+                                  setModalState(() {});
+                                },
+                                child: Container(
+                                  height: 48,
+                                  width: 48,
+                                  decoration: BoxDecoration(
+                                    color: currentBook.isFavorite
+                                        ? const Color(0xFFFFF6E5)
+                                        : AppColors.secondary,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: currentBook.isFavorite
+                                          ? const Color(0xFFF5A623)
+                                          : AppColors.divider,
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    currentBook.isFavorite
+                                        ? Icons.star_rounded
+                                        : Icons.star_outline_rounded,
+                                    color: currentBook.isFavorite
+                                        ? const Color(0xFFF5A623)
+                                        : AppColors.textSecondary,
+                                    size: 24,
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(width: 10),
+
+                              // Edit Button (Primary)
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    minimumSize: const Size.fromHeight(48),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                  ),
+                                  onPressed: () {
+                                    Navigator.pop(ctx);
+                                    _navigateToEditBook(currentBook);
+                                  },
+                                  icon: const Icon(Icons.edit_rounded, size: 18),
+                                  label: const Text(
+                                    'แก้ไขข้อมูล (Edit)',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(width: 10),
+
+                              // Delete Button
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.pop(ctx);
+                                  _confirmDeleteBook(currentBook);
+                                },
+                                child: Container(
+                                  height: 48,
+                                  width: 48,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFCC5B5B).withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: const Icon(
+                                    Icons.delete_outline_rounded,
+                                    color: Color(0xFFCC5B5B),
+                                    size: 22,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                      content: Text(
-                        'Are you sure you want to delete "${book.title}" from your bookshelf?',
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailGenreChip(String genre) {
+    final colors = [
+      {'bg': const Color(0xFFFFE8E4), 'text': const Color(0xFFB33A3A)},
+      {'bg': const Color(0xFFEADEFF), 'text': const Color(0xFF5B34B3)},
+      {'bg': const Color(0xFFFBE4F4), 'text': const Color(0xFF8C2B7A)},
+      {'bg': const Color(0xFFE4F3FB), 'text': const Color(0xFF1D6F9A)},
+      {'bg': const Color(0xFFE6F8EE), 'text': const Color(0xFF1B8A4D)},
+      {'bg': const Color(0xFFFFF4DF), 'text': const Color(0xFFAC6B00)},
+    ];
+    final colorMap = colors[genre.hashCode.abs() % colors.length];
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: colorMap['bg'],
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        genre,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: colorMap['text'],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRatingsGrid(Book book) {
+    final entries = book.customRatings.entries.toList();
+    if (entries.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.secondary.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Overall',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            Row(
+              children: [
+                const Icon(Icons.star_rounded, size: 16, color: Color(0xFFF5A623)),
+                const SizedBox(width: 4),
+                Text(
+                  '${book.overallRating.toStringAsFixed(1)}/5',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: Color(0xFFE59400),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final itemWidth = (constraints.maxWidth - 10) / 2;
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: entries.map((entry) {
+            final val = entry.value;
+            final valStr = val.truncateToDouble() == val ? '${val.toInt()}' : val.toStringAsFixed(1);
+            return SizedBox(
+              width: itemWidth,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8F9FA),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        entry.key,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textSecondary,
-                          height: 1.4,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
                         ),
                       ),
-                      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(dCtx, false),
-                          child: const Text(
-                            'Cancel',
-                            style: TextStyle(
-                              color: AppColors.textSecondary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFCC5B5B),
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                          ),
-                          onPressed: () => Navigator.pop(dCtx, true),
-                          child: const Text(
-                            'Delete',
-                            style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(width: 6),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.star_rounded, size: 16, color: Color(0xFFF5A623)),
+                        const SizedBox(width: 3),
+                        Text(
+                          '$valStr/5',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFE59400),
                           ),
                         ),
                       ],
                     ),
-                  );
-
-                  if (confirm == true) {
-                    try {
-                      await FirestoreService.deleteBook(book.id);
-                      if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Deleted "${book.title}"'),
-                          backgroundColor: AppColors.textPrimary,
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                        ),
-                      );
-                    } catch (e) {
-                      if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Failed to delete book: $e'),
-                          backgroundColor: Colors.redAccent,
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    }
-                  }
-                },
+                  ],
+                ),
               ),
-            ],
-          ),
+            );
+          }).toList(),
         );
       },
     );
+  }
+
+  Future<void> _navigateToEditBook(Book book) async {
+    HapticFeedback.mediumImpact();
+    final updatedBook = await Navigator.push<Book>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddBookScreen(bookToEdit: book),
+      ),
+    );
+
+    if (updatedBook != null && mounted) {
+      try {
+        setState(() {
+          final idx = _books.indexWhere((b) => b.id == updatedBook.id);
+          if (idx != -1) {
+            _books[idx] = updatedBook;
+          }
+        });
+        await FirestoreService.updateBook(updatedBook);
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Updated "${updatedBook.title}" successfully!',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.accent,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          ),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update book: $e'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmDeleteBook(Book book) async {
+    HapticFeedback.lightImpact();
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dCtx) => AlertDialog(
+        backgroundColor: AppColors.cardBackground,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFCC5B5B).withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.delete_outline_rounded,
+                color: Color(0xFFCC5B5B),
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Delete Book',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 18,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to delete "${book.title}" from your bookshelf?',
+          style: const TextStyle(
+            fontSize: 14,
+            color: AppColors.textSecondary,
+            height: 1.4,
+          ),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dCtx, false),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFCC5B5B),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
+            onPressed: () => Navigator.pop(dCtx, true),
+            child: const Text(
+              'Delete',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      try {
+        setState(() {
+          _books.removeWhere((b) => b.id == book.id);
+        });
+        await FirestoreService.deleteBook(book.id);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Deleted "${book.title}"'),
+            backgroundColor: AppColors.textPrimary,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          ),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete book: $e'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showBookOptions(Book book) {
+    _showBookDetail(book);
   }
 
   // ═══════════════════════════════════════════════════════════════

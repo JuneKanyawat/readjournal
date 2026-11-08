@@ -1717,6 +1717,40 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
                               }).toList(),
                             ),
                             const SizedBox(height: 16),
+                          ] else ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.secondary,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: AppColors.divider.withValues(alpha: 0.8),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.category_outlined,
+                                    size: 14,
+                                    color: AppColors.textSecondary.withValues(alpha: 0.7),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'ยังไม่มีหมวดหมู่',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.textSecondary.withValues(alpha: 0.8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
                           ],
 
                           // Ratings Card

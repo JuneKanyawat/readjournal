@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_data.dart';
 import '../models/book.dart';
 import '../services/firestore_service.dart';
 import 'add_book_screen.dart';
@@ -20,6 +21,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
   String _searchQuery = '';
   String _sortBy = 'dateFinished'; // dateFinished, ratingHighToLow
   double? _filterRating;
+  String? _filterGenre;
 
   List<Book> _books = [];
   bool _isLoading = true;
@@ -91,8 +93,14 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
       books = books.where((b) =>
         b.title.toLowerCase().contains(q) ||
         b.author.toLowerCase().contains(q) ||
-        b.publisher.toLowerCase().contains(q)
+        b.publisher.toLowerCase().contains(q) ||
+        b.genres.any((g) => g.toLowerCase().contains(q))
       ).toList();
+    }
+
+    // Filter by genre
+    if (_filterGenre != null) {
+      books = books.where((b) => b.genres.contains(_filterGenre)).toList();
     }
 
     // Filter by minimum rating
@@ -316,7 +324,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
                   color: AppColors.textPrimary,
                 ),
                 decoration: InputDecoration(
-                  hintText: 'Search title, author, publisher...',
+                  hintText: 'Search title, author, publisher, genre...',
                   hintStyle: TextStyle(
                     color: AppColors.textSecondary.withValues(alpha: 0.6),
                     fontSize: 13,
@@ -396,6 +404,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
 
     String tempSort = _sortBy;
     double? tempRating = _filterRating;
+    String? tempGenre = _filterGenre;
 
     showModalBottomSheet(
       context: context,
@@ -448,6 +457,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
                             setModalState(() {
                               tempSort = 'dateFinished';
                               tempRating = null;
+                              tempGenre = null;
                             });
                           },
                           child: Container(
@@ -500,6 +510,37 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
 
                     const SizedBox(height: 20),
 
+                    // ─── Filter by Genre ──────────────────────────
+                    const Text(
+                      'Genre',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildGenreFilterChip(
+                          label: 'All Genres',
+                          isSelected: tempGenre == null,
+                          onTap: () => setModalState(() => tempGenre = null),
+                        ),
+                        ...AppData.genres.map((g) {
+                          return _buildGenreFilterChip(
+                            label: g,
+                            isSelected: tempGenre == g,
+                            onTap: () => setModalState(() => tempGenre = g),
+                          );
+                        }),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+
                     // ─── Filter by Rating ─────────────────────────
                     const Text(
                       'Minimum Rating',
@@ -541,6 +582,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
                             setState(() {
                               _sortBy = tempSort;
                               _filterRating = tempRating;
+                              _filterGenre = tempGenre;
                             });
                             Navigator.pop(ctx);
                           },
@@ -567,6 +609,36 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildGenreFilterChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary.withValues(alpha: 0.12) : AppColors.secondary,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : AppColors.divider,
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            color: isSelected ? AppColors.primary : AppColors.textSecondary,
+          ),
+        ),
+      ),
     );
   }
 
@@ -646,57 +718,89 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
   // ═══════════════════════════════════════════════════════════════
   Widget _buildBookCount(int count) {
     final hasActiveFilters =
-        _filterRating != null || _sortBy != 'dateFinished';
+        _filterRating != null || _sortBy != 'dateFinished' || _filterGenre != null;
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTap: _scrollToTop,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 14, 24, 6),
-        child: Row(
-          children: [
-            Text(
-              '$count ${count == 1 ? 'book' : 'books'}',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          if (hasActiveFilters) ...[
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: () {
-                setState(() {
-                  _filterRating = null;
-                  _sortBy = 'dateFinished';
-                });
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(6),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              Text(
+                '$count ${count == 1 ? 'book' : 'books'}',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.close_rounded, size: 12, color: AppColors.primary),
-                    const SizedBox(width: 3),
-                    Text(
-                      'Clear filters',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
+              ),
+              if (_filterGenre != null) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Genre: $_filterGenre',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 4),
+                      GestureDetector(
+                        onTap: () => setState(() => _filterGenre = null),
+                        child: const Icon(Icons.close_rounded, size: 12, color: AppColors.primary),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ),
-          ],
-        ],
+              ],
+              if (hasActiveFilters) ...[
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _filterRating = null;
+                      _filterGenre = null;
+                      _sortBy = 'dateFinished';
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondary,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.close_rounded, size: 12, color: AppColors.textSecondary),
+                        SizedBox(width: 3),
+                        Text(
+                          'Clear all',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -935,6 +1039,33 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
                           color: AppColors.textSecondary,
                         ),
                       ),
+
+                      // Genre tags
+                      if (book.genres.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6, bottom: 2),
+                          child: Wrap(
+                            spacing: 4,
+                            runSpacing: 4,
+                            children: book.genres.take(3).map((g) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  g,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
 
                       const SizedBox(height: 8),
 

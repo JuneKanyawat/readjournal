@@ -51,9 +51,8 @@ class _AddBookScreenState extends State<AddBookScreen> {
   bool _isBlurred = false;
 
   // ─── Genres ────────────────────────────────────────────────────
-  static const bool _enableGenres = false;
+  static const bool _enableGenres = true;
   final List<String> _selectedGenres = [];
-  final TextEditingController _customGenreController = TextEditingController();
 
   // ─── Ratings ───────────────────────────────────────────────────
   late final Map<String, double> _customRatings;
@@ -125,7 +124,6 @@ class _AddBookScreenState extends State<AddBookScreen> {
     _settingsSub?.cancel();
     _titleController.dispose();
     _authorController.dispose();
-    _customGenreController.dispose();
     super.dispose();
   }
 
@@ -565,124 +563,341 @@ class _AddBookScreenState extends State<AddBookScreen> {
   // GENRES SECTION
   // ═══════════════════════════════════════════════════════════════
   Widget _buildGenresSection() {
-    final allGenres = <String>{...AppData.genres, ..._selectedGenres}.toList();
-
     return _buildSectionCard(
       title: 'Book Genres (หมวดหมู่)',
       icon: Icons.category_rounded,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: allGenres.map((genre) {
-              final isSelected = _selectedGenres.contains(genre);
-              return FilterChip(
-                label: Text(genre),
-                selected: isSelected,
-                onSelected: (selected) {
-                  HapticFeedback.selectionClick();
-                  setState(() {
-                    if (selected) {
-                      _selectedGenres.add(genre);
-                    } else {
-                      _selectedGenres.remove(genre);
-                    }
-                  });
-                },
-                backgroundColor: AppColors.secondary,
-                selectedColor: AppColors.primary.withValues(alpha: 0.15),
-                checkmarkColor: AppColors.primary,
-                labelStyle: TextStyle(
-                  fontSize: 13,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  color: isSelected ? AppColors.primary : AppColors.textPrimary,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  side: BorderSide(
-                    color: isSelected ? AppColors.primary : AppColors.divider,
-                    width: isSelected ? 1.5 : 1,
-                  ),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 14),
-          // Quick add genre input
-          Row(
-            children: [
-              Expanded(
+          if (_selectedGenres.isEmpty)
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: _showGenrePickerSheet,
+                borderRadius: BorderRadius.circular(14),
                 child: Container(
-                  height: 42,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
-                    color: AppColors.secondary,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.divider),
-                  ),
-                  child: TextField(
-                    controller: _customGenreController,
-                    style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
-                    decoration: const InputDecoration(
-                      hintText: 'Add new genre (เช่น Horror, Comedy)...',
-                      hintStyle: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: EdgeInsets.symmetric(vertical: 12),
+                    color: AppColors.secondary.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.25),
+                      width: 1.2,
                     ),
-                    onSubmitted: (_) => _addCustomGenre(),
                   ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Material(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(10),
-                child: InkWell(
-                  onTap: _addCustomGenre,
-                  borderRadius: BorderRadius.circular(10),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.add_rounded, size: 16, color: Colors.white),
-                        SizedBox(width: 4),
-                        Text(
-                          'Add',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
                         ),
-                      ],
-                    ),
+                        child: const Icon(Icons.add_rounded, color: AppColors.primary, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'กดเพื่อเลือกหมวดหมู่หนังสือ',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'เลือกแนวหนังสือ เช่น Fiction, วรรณกรรม, พัฒนาตนเอง...',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 20),
+                    ],
                   ),
                 ),
               ),
-            ],
-          ),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                ..._selectedGenres.map((genre) {
+                  return InputChip(
+                    label: Text(
+                      genre,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                    deleteIcon: const Icon(
+                      Icons.close_rounded,
+                      size: 16,
+                      color: AppColors.primary,
+                    ),
+                    onDeleted: () {
+                      HapticFeedback.selectionClick();
+                      setState(() {
+                        _selectedGenres.remove(genre);
+                      });
+                    },
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      side: BorderSide(
+                        color: AppColors.primary.withValues(alpha: 0.25),
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  );
+                }),
+                ActionChip(
+                  avatar: const Icon(
+                    Icons.add_rounded,
+                    size: 16,
+                    color: AppColors.primary,
+                  ),
+                  label: const Text(
+                    'เลือกเพิ่ม',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  backgroundColor: AppColors.secondary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(
+                      color: AppColors.primary.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  onPressed: _showGenrePickerSheet,
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                ),
+              ],
+            ),
         ],
       ),
     );
   }
 
-  void _addCustomGenre() {
-    final text = _customGenreController.text.trim();
-    if (text.isNotEmpty) {
-      HapticFeedback.lightImpact();
-      setState(() {
-        if (!_selectedGenres.contains(text)) {
-          _selectedGenres.add(text);
-        }
-        _customGenreController.clear();
-      });
-      FirestoreService.addGenre(text);
-    }
+  void _showGenrePickerSheet() {
+    HapticFeedback.lightImpact();
+    final allGenres = <String>{...AppData.genres, ..._selectedGenres}.toList();
+    final tempSelected = List<String>.from(_selectedGenres);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.75,
+              ),
+              decoration: const BoxDecoration(
+                color: AppColors.cardBackground,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Handle
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 18),
+                      decoration: BoxDecoration(
+                        color: AppColors.divider,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+
+                  // Header Row
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.category_rounded,
+                          size: 20,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'เลือกหมวดหมู่หนังสือ',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'สามารถเลือกได้มากกว่า 1 หมวดหมู่',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (tempSelected.isNotEmpty)
+                        TextButton(
+                          onPressed: () {
+                            HapticFeedback.selectionClick();
+                            setModalState(() {
+                              tempSelected.clear();
+                            });
+                          },
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.textSecondary,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Text('ล้างทั้งหมด', style: TextStyle(fontSize: 13)),
+                        ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Chips container
+                  Flexible(
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 10,
+                        children: allGenres.map((genre) {
+                          final isSelected = tempSelected.contains(genre);
+                          return FilterChip(
+                            label: Text(genre),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              HapticFeedback.selectionClick();
+                              setModalState(() {
+                                if (selected) {
+                                  tempSelected.add(genre);
+                                } else {
+                                  tempSelected.remove(genre);
+                                }
+                              });
+                            },
+                            backgroundColor: AppColors.secondary,
+                            selectedColor: AppColors.primary.withValues(alpha: 0.15),
+                            checkmarkColor: AppColors.primary,
+                            labelStyle: TextStyle(
+                              fontSize: 13,
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                              color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              side: BorderSide(
+                                color: isSelected ? AppColors.primary : AppColors.divider,
+                                width: isSelected ? 1.5 : 1,
+                              ),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Action Buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.textPrimary,
+                            side: const BorderSide(color: AppColors.divider),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'ยกเลิก',
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            HapticFeedback.mediumImpact();
+                            setState(() {
+                              _selectedGenres
+                                ..clear()
+                                ..addAll(tempSelected);
+                            });
+                            Navigator.pop(ctx);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text(
+                            tempSelected.isEmpty
+                                ? 'ตกลง'
+                                : 'บันทึก (${tempSelected.length} หมวดหมู่)',
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   // ═══════════════════════════════════════════════════════════════

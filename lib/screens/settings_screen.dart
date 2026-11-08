@@ -25,7 +25,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final TextEditingController _editTopicController = TextEditingController();
 
   // ─── Feature Flags ─────────────────────────────────────────────
-  static const bool _enableGenres = false;
+  static const bool _enableGenres = true;
   static const bool _enableAppearance = false;
 
   // ─── Genre Tags ────────────────────────────────────────────────

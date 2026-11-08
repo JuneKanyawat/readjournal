@@ -16,8 +16,8 @@ class _StatsScreenState extends State<StatsScreen> {
   final ScrollController _scrollController = ScrollController();
   int _selectedYear = DateTime.now().year;
 
-  // Toggle for genre features (disabled for now)
-  static const bool _enableGenres = false;
+  // Toggle for genre features
+  static const bool _enableGenres = true;
 
   // Month names for the 1-year chart
   static const List<String> _monthNames = [
